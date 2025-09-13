@@ -6,13 +6,14 @@ export default function AddStudent({setStudents, showNotification}) {
   const [rollNo, setRollNo] = useState('')
   const [studentClass, setStudentClass] = useState('')
   const [dob, setDob] = useState('')
+  const [email, setEmail] = useState('') // New state for email
 
   const handleAddStudent = async (e) => {
     e.preventDefault()
     const { data, error } = await supabase
       .from('students')
       .insert([
-        { full_name: fullName, roll_no: rollNo, class: studentClass, dob: dob }
+        { full_name: fullName, roll_no: rollNo, class: studentClass, dob: dob, email: email } // Add email here
       ])
       .select()
     if (error) {
@@ -20,10 +21,34 @@ export default function AddStudent({setStudents, showNotification}) {
     } else if (data && data[0]) {
       showNotification('Student added successfully!', 'success')
       setStudents((prev) => [...prev, data[0]])
+
+      // Send welcome email via Node.js backend
+      try {
+        const emailResponse = await fetch('http://localhost:3001/send-welcome-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: email, fullName: fullName, rollNo: rollNo }),
+        });
+
+        const emailData = await emailResponse.json();
+        if (!emailResponse.ok) {
+          console.error('Failed to send welcome email:', emailData.error);
+          showNotification('Failed to send welcome email: ' + emailData.error, 'error');
+        } else {
+          showNotification('Welcome email sent successfully!', 'success');
+        }
+      } catch (emailError) {
+        console.error('Error sending welcome email:', emailError);
+        showNotification('Error sending welcome email.', 'error');
+      }
+
       setFullName('')
       setRollNo('')
       setStudentClass('')
       setDob('')
+      setEmail('') // Clear email field
     } else {
       showNotification('Student added but no data returned', 'error')
     }
@@ -63,6 +88,14 @@ export default function AddStudent({setStudents, showNotification}) {
           placeholder="Date of Birth"
           value={dob}
           onChange={(e) => setDob(e.target.value)}
+          className="p-2 border rounded"
+          required
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           className="p-2 border rounded"
           required
         />
